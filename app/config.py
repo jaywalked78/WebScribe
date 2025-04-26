@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     TIMEOUT_SECONDS: int = 30
     DEBUG: bool = False
 
+    # Airtable Integration
+    AIRTABLE_API_KEY: str | None = None  # Legacy support
+    AIRTABLE_PERSONAL_ACCESS_TOKEN: str | None = None  # Modern Airtable auth
+    AIRTABLE_BASE_ID: str | None = None
+    AIRTABLE_TABLE_NAME: str | None = None
+
     # Comma separated origins or *
     CORS_ALLOW_ORIGINS: str = "*"
 

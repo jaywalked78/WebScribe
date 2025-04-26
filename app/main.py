@@ -13,7 +13,8 @@ from .config import settings, get_settings, Settings
 from .models.input import ParseRequest, ParseURLRequest
 from .models.output import ParseResponse, HealthResponse
 from .services.parser import HTMLParserService
-from .services.webhook import WebhookService
+# from .services.webhook import WebhookService  # Commented out webhook integration
+# from .services.airtable import AirtableService  # Commented out Airtable integration
 
 
 app: FastAPI = Depends(lambda: __import__("app").app)
@@ -30,23 +31,25 @@ _app.add_middleware(
 )
 
 
-def request_body_limiter(request: Request, call_next):
+async def request_body_limiter(request: Request, call_next):
     """Limit request body size to MAX_CONTENT_SIZE from settings."""
+    original_receive = request._receive
 
-    async def limited_receive() -> Message:  # type: ignore  # pylint: disable=nested-function-nested
-        msg: Message = await request._receive()  # type: ignore  # pylint: disable=protected-access
-        if msg.get("type") == "http.request":
-            body = msg.get("body", b"")
+    async def limited_receive() -> Message:
+        message = await original_receive()
+        if message["type"] == "http.request":
+            body = message.get("body", b"")
             if len(body) > settings.MAX_CONTENT_SIZE:
                 raise HTTPException(status_code=HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Payload too large")
-        return msg
+        return message
 
-    request._receive = limited_receive  # type: ignore  # pylint: disable=protected-access
-    return call_next(request)
+    request._receive = limited_receive
+    return await call_next(request)
 
 
 _auto_parser = HTMLParserService()
-webhook = WebhookService()
+# webhook = WebhookService()  # Commented out webhook service
+# airtable = AirtableService()  # Commented out Airtable service
 
 
 @_app.post("/api/v1/parse", response_model=ParseResponse, status_code=status.HTTP_200_OK)
@@ -75,9 +78,13 @@ async def parse_html(
         record_id=payload.record_id,
     )
 
-    # Trigger webhook asynchronously
-    if app_settings.WEBHOOK_URL:
-        background_tasks.add_task(webhook.deliver, response)
+    # Sync with Airtable asynchronously (if configured)
+    # if airtable.is_configured():
+    #     background_tasks.add_task(airtable.sync_parsed_content, response)
+
+    # Trigger webhook asynchronously (if configured)
+    # if app_settings.WEBHOOK_URL:
+    #     background_tasks.add_task(webhook.deliver, response)
 
     return response
 
@@ -111,9 +118,13 @@ async def parse_url(
         record_id=payload.record_id,
     )
 
-    # Trigger webhook asynchronously
-    if app_settings.WEBHOOK_URL:
-        background_tasks.add_task(webhook.deliver, response)
+    # Sync with Airtable asynchronously (if configured)
+    # if airtable.is_configured():
+    #     background_tasks.add_task(airtable.sync_parsed_content, response)
+
+    # Trigger webhook asynchronously (if configured)
+    # if app_settings.WEBHOOK_URL:
+    #     background_tasks.add_task(webhook.deliver, response)
 
     return response
 

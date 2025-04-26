@@ -7,10 +7,13 @@ WebScribe transforms complex web pages into clean, structured Markdown while pre
 - 🔄 **Intelligent Content Extraction**: Automatically identifies and extracts the main content from webpages
 - 📝 **Markdown Conversion**: Transforms HTML to clean, readable Markdown
 - 📊 **Metadata Extraction**: Retrieves title, authors, publication date, and other metadata when available
-- 🪝 **Webhook Integration**: Sends parsed content to any configured endpoint (perfect for n8n workflows)
-- 🔒 **Payload Signing**: Secures webhook payloads with HMAC signatures
-- ⚡ **FastAPI Backend**: High-performance REST API with automatic documentation
+- ⚡ **Direct n8n Integration**: Returns parsed content directly to n8n for immediate processing
 - 🧰 **CLI Tools**: Parse URLs directly from the command line
+- 🚀 **Optional Integrations**:
+  - 🪝 **Webhook Support**: Can send parsed content to configured endpoints
+  - 📋 **Airtable Syncing**: Can directly sync with Airtable records
+  - 🔒 **Payload Signing**: Secures webhook payloads with HMAC signatures
+- 🔥 **FastAPI Backend**: High-performance REST API with automatic documentation
 
 ## Quick Start
 
@@ -32,7 +35,7 @@ WebScribe transforms complex web pages into clean, structured Markdown while pre
    cp .env.example .env
    ```
 
-3. Edit the `.env` file to customize settings (especially webhook URL if using with n8n)
+3. Edit the `.env` file to customize settings
 
 4. Run the server:
    ```bash
@@ -50,8 +53,11 @@ Configuration is managed through environment variables, which can be set in the 
 | HOST | API server host | 0.0.0.0 |
 | PORT | API server port | 8000 |
 | LOG_LEVEL | Logging verbosity (DEBUG, INFO, etc.) | INFO |
-| WEBHOOK_URL | URL to send parsed content to | None |
-| WEBHOOK_SECRET | Secret key for signing webhook payloads | None |
+| WEBHOOK_URL | URL to send parsed content to (optional) | None |
+| WEBHOOK_SECRET | Secret key for signing webhook payloads (optional) | None |
+| AIRTABLE_PERSONAL_ACCESS_TOKEN | Airtable personal access token (optional) | None |
+| AIRTABLE_BASE_ID | Airtable base ID (optional) | None |
+| AIRTABLE_TABLE_NAME | Airtable table name (optional) | None |
 | MAX_CONTENT_SIZE | Maximum content size in bytes | 10MB |
 | TIMEOUT_SECONDS | Request timeout in seconds | 30 |
 | DEBUG | Enable debug mode | False |
@@ -88,7 +94,7 @@ Parse a URL and save to a file:
 ./parse_url.sh https://example.com/article output.md
 ```
 
-Run a test parse with webhook integration:
+Run a test parse:
 
 ```bash
 ./run_test_parse.sh https://pmc.ncbi.nlm.nih.gov/articles/PMC8998800/
@@ -96,18 +102,18 @@ Run a test parse with webhook integration:
 
 ## Integration with n8n
 
-WebScribe works seamlessly with n8n for content extraction and processing workflows.
+WebScribe is designed to integrate seamlessly with n8n for powerful content extraction and processing workflows.
 
-### Workflow Diagram
+### Direct Integration (Recommended)
+
+The most efficient way to use WebScribe with n8n is via direct API integration:
 
 ```mermaid
 graph LR
     A[n8n Source Node] -->|URL or HTML| B[HTTP Request]
     B -->|POST to WebScribe API| C[WebScribe]
-    C -->|Processing| D[Parse Content]
-    D -->|Webhook| E[n8n Webhook Node]
-    E -->|Structured Data| F[Further Processing]
-    F -->|Store/Transform| G[Destination]
+    C -->|Immediate Response| D[n8n Processing]
+    D -->|Store/Transform| E[Destination]
 ```
 
 ### Setting Up the n8n Workflow
@@ -116,11 +122,15 @@ graph LR
 2. **HTTP Request Node**: 
    - Method: POST
    - URL: http://your-webscribe-host:port/api/v1/parse-url
-   - Body: `{"url": "{{$node['Previous_Node'].json.url}}"}`
-3. **Webhook Node**: 
-   - Configure a webhook in n8n to receive the parsed content
-   - Set the webhook URL in WebScribe's `.env` file: `WEBHOOK_URL=http://your-n8n-host:port/webhook-path`
-4. **Processing Nodes**: Add nodes to process the structured data (Markdown content and metadata)
+   - Body: `{"url": "{{$node['Previous_Node'].json.url}}", "record_id": "optional-record-id-for-tracking"}`
+3. **Processing Nodes**: Process the returned markdown and metadata directly in n8n
+
+### Benefits of Direct Integration
+
+- **Immediate Data Access**: Get parsed content and metadata instantly in your n8n workflow
+- **Simpler Architecture**: No need to set up webhooks or additional connections
+- **Reliable Processing**: Avoid potential webhook delivery issues or timeouts
+- **Full Control**: Process, transform, and store data directly within n8n
 
 ## API Documentation
 
@@ -128,9 +138,47 @@ When the server is running, visit http://localhost:8877/docs for interactive API
 
 ## Advanced Usage
 
-### Webhook Payload Structure
+### Optional Airtable Integration
 
-The webhook payload contains:
+WebScribe includes built-in Airtable integration capabilities (disabled by default):
+
+1. Set up your Airtable base with a table that includes these fields (field names must match):
+   - URL (URL field)
+   - Title (Text field)
+   - Authors (Text field)
+   - PublicationDate (Date field)
+   - Journal (Text field)
+   - DOI (Text field)
+   - Keywords (Text field)
+   - Abstract (Long text field)
+   - Markdown (Long text field)
+   - ParseID (Text field)
+   - ProcessingTimeMs (Number field)
+
+2. Configure your environment variables:
+   ```
+   AIRTABLE_PERSONAL_ACCESS_TOKEN=your_token
+   AIRTABLE_BASE_ID=your_base_id
+   AIRTABLE_TABLE_NAME=your_table_name
+   ```
+
+3. Uncomment the Airtable integration code in `app/main.py` to enable this feature
+
+### Optional Webhook Integration
+
+For webhook-based integration (disabled by default):
+
+1. Configure your webhook destination endpoint
+2. Set the webhook URL in your `.env` file:
+   ```
+   WEBHOOK_URL=http://your-destination-endpoint.com/webhook-path
+   WEBHOOK_SECRET=your_secret_key
+   ```
+3. Uncomment the webhook integration code in `app/main.py` to enable this feature
+
+### Response Payload Structure
+
+The API response contains:
 
 ```json
 {
@@ -145,13 +193,10 @@ The webhook payload contains:
     "date": "publication-date",
     "keywords": ["keyword1", "keyword2"]
   },
-  "processing_time_ms": 1234
+  "processing_time_ms": 1234,
+  "record_id": "optional-tracking-id"
 }
 ```
-
-### Security
-
-For secure webhook integrations, set `WEBHOOK_SECRET` in your `.env` file. The webhook will include an `X-Signature` header with an HMAC-SHA256 signature of the payload for verification.
 
 ## Contributing
 

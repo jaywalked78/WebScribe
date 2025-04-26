@@ -5,6 +5,27 @@ All notable changes to the WebScribe project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-04-26
+
+### Added
+- Airtable integration capabilities for direct syncing of parsed content
+- Added support for personal access tokens for Airtable authentication
+- Added record_id tracking between n8n and parser services
+- Created utility scripts for Airtable setup and management
+- Enhanced error handling for external service integrations
+- Added detailed debugging tools for Airtable connectivity
+
+### Changed
+- Switched to direct n8n integration as the recommended approach
+- Made webhook and Airtable integrations optional (disabled by default)
+- Improved API response structure with additional metadata
+- Updated documentation to emphasize direct integration benefits
+- Enhanced middleware for more robust request handling
+
+### Fixed
+- Fixed recursive middleware error that was causing stability issues
+- Improved error handling for large payload processing
+
 ## [1.0.0] - 2025-04-26
 
 ### Added
