@@ -1,202 +1,247 @@
-# WebScribe
+# Scientific HTML Parser
 
-WebScribe transforms complex web pages into clean, structured Markdown while preserving essential metadata. Initially optimized for scientific articles, WebScribe can be extended to handle various content types. The application provides both a REST API and command-line tools for parsing HTML content.
+A robust HTML parser specifically designed for scientific and technical content. The parser converts HTML into clean, well-structured markdown while preserving important metadata.
 
 ## Features
 
-- 🔄 **Intelligent Content Extraction**: Automatically identifies and extracts the main content from webpages
-- 📝 **Markdown Conversion**: Transforms HTML to clean, readable Markdown
-- 📊 **Metadata Extraction**: Retrieves title, authors, publication date, and other metadata when available
-- ⚡ **Direct n8n Integration**: Returns parsed content directly to n8n for immediate processing
-- 🧰 **CLI Tools**: Parse URLs directly from the command line
-- 🚀 **Optional Integrations**:
-  - 🪝 **Webhook Support**: Can send parsed content to configured endpoints
-  - 📋 **Airtable Syncing**: Can directly sync with Airtable records
-  - 🔒 **Payload Signing**: Secures webhook payloads with HMAC signatures
-- 🔥 **FastAPI Backend**: High-performance REST API with automatic documentation
+- **Clean Conversion**: Converts HTML to clean, structured markdown
+- **Metadata Extraction**: Extracts title, authors, publication date, DOI, and more
+- **Format Options**: Multiple output formats including standard, semantic, and YAML-frontmatter
+- **Section Recognition**: Intelligently identifies document sections (abstract, methods, results, etc.)
+- **Entity Recognition**: Identifies entities such as physiological parameters, body systems, exercise types
+- **Domain Detection**: Automatically detects therapeutic domains of content
+- **Study Type Detection**: Identifies the type of study (RCT, meta-analysis, cohort study, etc.)
+- **Keyword Generation**: Extracts relevant keywords based on content analysis
+- **Reference Formatting**: Proper formatting of scientific references
 
-## Quick Start
-
-### Prerequisites
-
-- Python 3.8+
-- `lsof` command-line utility (for process management)
-
-### Installation
+## Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/jaywalked78/WebScribe.git
-   cd WebScribe
+   git clone https://github.com/yourusername/html-parser.git
+   cd html-parser
    ```
 
-2. Create a configuration file:
+2. Set up a virtual environment:
    ```bash
-   cp .env.example .env
+   python -m venv parserVenv
+   source parserVenv/bin/activate  # On Windows: parserVenv\Scripts\activate
    ```
 
-3. Edit the `.env` file to customize settings
-
-4. Run the server:
+3. Install dependencies:
    ```bash
-   ./run_server.sh
+   pip install -r requirements.txt
    ```
 
-The API will be available at http://localhost:8877 (or your configured host/port).
-
-## Configuration
-
-Configuration is managed through environment variables, which can be set in the `.env` file:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| HOST | API server host | 0.0.0.0 |
-| PORT | API server port | 8000 |
-| LOG_LEVEL | Logging verbosity (DEBUG, INFO, etc.) | INFO |
-| WEBHOOK_URL | URL to send parsed content to (optional) | None |
-| WEBHOOK_SECRET | Secret key for signing webhook payloads (optional) | None |
-| AIRTABLE_PERSONAL_ACCESS_TOKEN | Airtable personal access token (optional) | None |
-| AIRTABLE_BASE_ID | Airtable base ID (optional) | None |
-| AIRTABLE_TABLE_NAME | Airtable table name (optional) | None |
-| MAX_CONTENT_SIZE | Maximum content size in bytes | 10MB |
-| TIMEOUT_SECONDS | Request timeout in seconds | 30 |
-| DEBUG | Enable debug mode | False |
-| CORS_ALLOW_ORIGINS | Allowed CORS origins | * |
+4. Create a `.env` file:
+   ```
+   HOST=0.0.0.0
+   PORT=8877
+   WEBHOOK_URL=
+   WEBHOOK_SECRET=
+   SAVE_LOCAL_FILES=true
+   OUTPUT_DIR=output/md
+   USE_API_OPTIMIZATION=true
+   # YAML Preprocessing (for n8n integration)
+   ENABLE_YAML_PREPROCESSING=true
+   CONVERT_TO_JSON=false
+   N8N_WEBHOOK_URL=https://your-n8n-endpoint.com/webhook/path
+   ```
 
 ## Usage
 
-### REST API
-
-The API provides two main endpoints:
-
-- **POST** `/api/v1/parse`: Parse raw HTML content
-- **POST** `/api/v1/parse-url`: Fetch and parse a URL
-
-Example using curl:
+### Starting the Server
 
 ```bash
-curl -X POST "http://localhost:8877/api/v1/parse-url" \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com/article"}'
+./run_server.sh
 ```
 
-### Command Line
+### Command Line Interface
 
-Parse a URL and output the Markdown:
+#### Single URL Parsing
+
+Parse a single URL:
 
 ```bash
 ./parse_url.sh https://example.com/article
 ```
 
-Parse a URL and save to a file:
+Parse a URL and save to a specific file:
 
 ```bash
-./parse_url.sh https://example.com/article output.md
+./parse_url.sh https://example.com/article output_file.md
 ```
 
-Run a test parse:
+Parse a URL with a specific format:
 
 ```bash
-./run_test_parse.sh https://pmc.ncbi.nlm.nih.gov/articles/PMC8998800/
+./parse_url.sh https://example.com/article output_file.md yaml
 ```
 
-## Integration with n8n
+#### Batch URL Parsing
 
-WebScribe is designed to integrate seamlessly with n8n for powerful content extraction and processing workflows.
+Process multiple URLs from a file:
 
-### Direct Integration (Recommended)
-
-The most efficient way to use WebScribe with n8n is via direct API integration:
-
-```mermaid
-graph LR
-    A[n8n Source Node] -->|URL or HTML| B[HTTP Request]
-    B -->|POST to WebScribe API| C[WebScribe]
-    C -->|Immediate Response| D[n8n Processing]
-    D -->|Store/Transform| E[Destination]
+```bash
+./batch_parse.sh urls.txt
 ```
 
-### Setting Up the n8n Workflow
+Process multiple URLs with a specific format:
 
-1. **Source Node**: Use any n8n node that provides URLs or HTML content (HTTP Request, RSS Feed, etc.)
-2. **HTTP Request Node**: 
-   - Method: POST
-   - URL: http://your-webscribe-host:port/api/v1/parse-url
-   - Body: `{"url": "{{$node['Previous_Node'].json.url}}", "record_id": "optional-record-id-for-tracking"}`
-3. **Processing Nodes**: Process the returned markdown and metadata directly in n8n
-
-### Benefits of Direct Integration
-
-- **Immediate Data Access**: Get parsed content and metadata instantly in your n8n workflow
-- **Simpler Architecture**: No need to set up webhooks or additional connections
-- **Reliable Processing**: Avoid potential webhook delivery issues or timeouts
-- **Full Control**: Process, transform, and store data directly within n8n
-
-## API Documentation
-
-When the server is running, visit http://localhost:8877/docs for interactive API documentation.
-
-## Advanced Usage
-
-### Optional Airtable Integration
-
-WebScribe includes built-in Airtable integration capabilities (disabled by default):
-
-1. Set up your Airtable base with a table that includes these fields (field names must match):
-   - URL (URL field)
-   - Title (Text field)
-   - Authors (Text field)
-   - PublicationDate (Date field)
-   - Journal (Text field)
-   - DOI (Text field)
-   - Keywords (Text field)
-   - Abstract (Long text field)
-   - Markdown (Long text field)
-   - ParseID (Text field)
-   - ProcessingTimeMs (Number field)
-
-2. Configure your environment variables:
-   ```
-   AIRTABLE_PERSONAL_ACCESS_TOKEN=your_token
-   AIRTABLE_BASE_ID=your_base_id
-   AIRTABLE_TABLE_NAME=your_table_name
-   ```
-
-3. Uncomment the Airtable integration code in `app/main.py` to enable this feature
-
-### Optional Webhook Integration
-
-For webhook-based integration (disabled by default):
-
-1. Configure your webhook destination endpoint
-2. Set the webhook URL in your `.env` file:
-   ```
-   WEBHOOK_URL=http://your-destination-endpoint.com/webhook-path
-   WEBHOOK_SECRET=your_secret_key
-   ```
-3. Uncomment the webhook integration code in `app/main.py` to enable this feature
-
-### Response Payload Structure
-
-The API response contains:
-
-```json
-{
-  "id": "unique-uuid",
-  "timestamp": "ISO-formatted-date",
-  "source_url": "original-url",
-  "status": "success",
-  "markdown": "converted-content",
-  "metadata": {
-    "title": "page-title",
-    "authors": ["author1", "author2"],
-    "date": "publication-date",
-    "keywords": ["keyword1", "keyword2"]
-  },
-  "processing_time_ms": 1234,
-  "record_id": "optional-tracking-id"
-}
+```bash
+./batch_parse.sh urls.txt semantic
 ```
+
+### Output Formats
+
+The parser supports three output formats:
+
+1. **standard** (default): Basic markdown output with minimal structure
+2. **semantic**: Enhanced semantic markup with entities and mechanisms detected
+3. **yaml**: YAML front matter with structured metadata
+
+#### YAML Format Example
+
+```markdown
+---
+title: "Example Article Title"
+source_url: "https://example.com/article"
+date_processed: "2023-07-20T14:30:00Z"
+doi: "10.1234/example.5678"
+journal: "Journal of Examples"
+publication_date: "2023-05-15"
+authors:
+  - "Smith, John"
+  - "Doe, Jane"
+document_type: "research_article"
+therapeutic_domains:
+  - "infrared_therapy"
+  - "detoxification"
+study_type:
+  - "rct"
+  - "clinical_trial"
+sections:
+  - id: "abstract"
+    heading: "Abstract"
+    keywords:
+      - "infrared radiation"
+      - "detoxification"
+      - "sweat"
+  - id: "introduction"
+    heading: "Introduction"
+    keywords:
+      - "heat therapy"
+      - "toxin elimination"
+  # ... more sections
+entities:
+  physiological_parameter:
+    - "heart rate"
+    - "blood pressure"
+  body_system:
+    - "cardiovascular"
+    - "integumentary"
+  # ... more entity types
+mechanisms:
+  cellular_mechanisms:
+    - "mitochondrial biogenesis"
+    - "ATP production"
+  # ... more mechanism types
+---
+
+# Example Article Title
+
+## Abstract
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit...
+```
+
+## API Endpoints
+
+The server exposes the following API endpoints:
+
+- `POST /api/v1/parse`: Parse raw HTML into markdown
+- `POST /api/v1/parse-url`: Fetch and parse content from a URL
+- `POST /api/v1/parse-url/enhanced`: Parse with enhanced semantic markup
+- `GET /health`: Health check endpoint
+
+## YAML Preprocessing for n8n Integration
+
+The parser now includes a preprocessing feature that simplifies the YAML front matter for better compatibility with n8n JavaScript processing. This feature:
+
+- Flattens nested structures for easier access in n8n workflows
+- Ensures consistent indentation and array formatting
+- Converts complex YAML structures into direct key-value pairs
+- Optionally converts YAML to JSON format for direct JSON parsing
+
+### Configuring YAML Preprocessing
+
+Add these options to your `.env` file:
+
+```
+# YAML Preprocessing (for n8n integration)
+ENABLE_YAML_PREPROCESSING=true
+CONVERT_TO_JSON=false
+N8N_WEBHOOK_URL=https://your-n8n-endpoint.com/webhook/path
+```
+
+### How YAML Preprocessing Works
+
+The preprocessing transforms complex nested YAML structures into a simplified format:
+
+**Before Preprocessing:**
+```yaml
+entities:
+  physiological_parameter:
+    - "heart rate"
+    - "blood pressure"
+  body_system:
+    - "cardiovascular"
+    - "integumentary"
+```
+
+**After Preprocessing:**
+```yaml
+physiological_parameters:
+  - "heart rate"
+  - "blood pressure"
+body_systems:
+  - "cardiovascular"
+  - "integumentary"
+```
+
+### Integration with Webhook Delivery
+
+When enabled, the YAML preprocessing happens automatically after webhook_v3.py generates the response and before sending to n8n. The integration:
+
+1. Extracts the YAML front matter from the markdown field
+2. Processes it for simplified structure
+3. Repackages the response with processed YAML
+4. Forwards the processed response to n8n
+
+This makes parsing the data in n8n JavaScript nodes much easier, as all data is available at predictable paths with consistent formatting.
+
+## File Output
+
+Processed files are saved in the following structure:
+
+```
+output/md/
+  └── DOMAIN/
+      ├── ArticleTitle_Original.md
+      ├── ArticleTitle_ChunkOptimized.md (for standard format)
+      ├── ArticleTitle_Semantic.md (for semantic format)
+      └── ArticleTitle_YAML.md (for yaml format)
+```
+
+The `DOMAIN` directory is automatically created based on the source URL.
+
+## Dependencies
+
+- FastAPI: Web framework
+- BeautifulSoup4: HTML parsing
+- Requests: HTTP requests
+- NLTK: Natural language processing
+- Python-dotenv: Environment variable management
 
 ## Contributing
 
