@@ -14,7 +14,7 @@ logging.basicConfig(
 
 app = FastAPI(
     title="Scientific HTML Parser API",
-    version="1.0.0",
+    version="1.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
     debug=settings.DEBUG,
