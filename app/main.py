@@ -72,6 +72,7 @@ async def parse_html(
         markdown=markdown_content,
         metadata=metadata,
         processing_time_ms=elapsed_ms,
+        record_id=payload.record_id,
     )
 
     # Trigger webhook asynchronously
@@ -107,6 +108,7 @@ async def parse_url(
         markdown=markdown_content,
         metadata=metadata,
         processing_time_ms=elapsed_ms,
+        record_id=payload.record_id,
     )
 
     # Trigger webhook asynchronously

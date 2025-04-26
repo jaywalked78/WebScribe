@@ -24,6 +24,7 @@ class ParseResponse(BaseModel):
     markdown: str
     metadata: ArticleMetadata
     processing_time_ms: int
+    record_id: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
