@@ -31,24 +31,66 @@ class MarkdownService:
         if not isinstance(node, Tag):
             return ""
 
+        # Handle headings with explicit formatting
         if node.name in self.heading_map:
-            return f"{self.heading_map[node.name]}{node.get_text(strip=True)}"
+            heading_text = node.get_text(strip=True)
+            return f"{self.heading_map[node.name]}{heading_text}"
+        
+        # Handle paragraphs and divs
         if node.name in {"p", "div"}:
-            return node.get_text(strip=True)
+            # Process child elements to preserve nested structure
+            inner_text = []
+            for child in node.children:
+                inner_text.append(self._convert_node(child))
+            return " ".join(text for text in inner_text if text.strip())
+        
+        # Handle lists
         if node.name in {"ul", "ol"}:
             return self._convert_list(node)
+        
+        # Handle list items
         if node.name == "li":
-            return f"- {node.get_text(strip=True)}"
+            # Process child elements to preserve nested items
+            inner_text = []
+            for child in node.children:
+                inner_text.append(self._convert_node(child))
+            return f"- {' '.join(text for text in inner_text if text.strip())}"
+        
+        # Handle images
         if node.name == "img":
             alt = node.get("alt", "")
             src = node.get("src", "")
             return f"![{alt}]({src})"
+        
+        # Handle links
         if node.name == "a":
             href = node.get("href", "#")
             text = node.get_text(strip=True)
             return f"[{text}]({href})"
+        
+        # Handle tables
         if node.name == "table":
             return self._convert_table(node)
+
+        # Handle text formatting
+        if node.name == "strong" or node.name == "b":
+            return f"**{node.get_text(strip=True)}**"
+        if node.name == "em" or node.name == "i":
+            return f"*{node.get_text(strip=True)}*"
+        if node.name == "code":
+            return f"`{node.get_text(strip=True)}`"
+        if node.name == "pre":
+            return f"```\n{node.get_text(strip=False)}\n```"
+        if node.name == "blockquote":
+            lines = node.get_text(strip=True).split('\n')
+            return '\n'.join(f"> {line}" for line in lines)
+
+        # Recursively handle containers that might have headings/structures inside
+        if node.find(list(self.heading_map.keys()), recursive=True):
+            inner_parts = []
+            for child in node.children:
+                inner_parts.append(self._convert_node(child))
+            return "\n\n".join(part for part in inner_parts if part)
 
         # Fallback to text
         return node.get_text(strip=True)
@@ -56,9 +98,22 @@ class MarkdownService:
     def _convert_list(self, node: Tag) -> str:
         lines: list[str] = []
         ordered = node.name == "ol"
+        
         for idx, li in enumerate(node.find_all("li", recursive=False), start=1):
             prefix = f"{idx}. " if ordered else "- "
-            lines.append(prefix + li.get_text(strip=True))
+            
+            # Process child elements to handle nested lists
+            inner_text = []
+            for child in li.children:
+                if isinstance(child, Tag) and child.name in {"ul", "ol"}:
+                    # Handle nested lists with proper indentation
+                    nested_list = self._convert_list(child)
+                    inner_text.append("\n" + "\n".join("  " + line for line in nested_list.split("\n")))
+                else:
+                    inner_text.append(self._convert_node(child))
+            
+            lines.append(prefix + " ".join(text for text in inner_text if text.strip()))
+        
         return "\n".join(lines)
 
     def _convert_table(self, node: Tag) -> str:
